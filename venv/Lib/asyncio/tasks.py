@@ -17,7 +17,6 @@ import itertools
 import types
 import warnings
 import weakref
-from types import GenericAlias
 
 from . import base_tasks
 from . import coroutines
@@ -148,7 +147,8 @@ class Task(futures._PyFuture):  # Inherit Python Task implementation
             self._loop.call_exception_handler(context)
         super().__del__()
 
-    __class_getitem__ = classmethod(GenericAlias)
+    def __class_getitem__(cls, type):
+        return cls
 
     def _repr_info(self):
         return base_tasks._task_repr_info(self)
@@ -373,7 +373,7 @@ ALL_COMPLETED = concurrent.futures.ALL_COMPLETED
 async def wait(fs, *, loop=None, timeout=None, return_when=ALL_COMPLETED):
     """Wait for the Futures and coroutines given by fs to complete.
 
-    The fs iterable must not be empty.
+    The sequence futures must not be empty.
 
     Coroutines will be wrapped in Tasks.
 
@@ -400,15 +400,13 @@ async def wait(fs, *, loop=None, timeout=None, return_when=ALL_COMPLETED):
                       "and scheduled for removal in Python 3.10.",
                       DeprecationWarning, stacklevel=2)
 
-    fs = set(fs)
-
-    if any(coroutines.iscoroutine(f) for f in fs):
+    if any(coroutines.iscoroutine(f) for f in set(fs)):
         warnings.warn("The explicit passing of coroutine objects to "
                       "asyncio.wait() is deprecated since Python 3.8, and "
                       "scheduled for removal in Python 3.11.",
                       DeprecationWarning, stacklevel=2)
 
-    fs = {ensure_future(f, loop=loop) for f in fs}
+    fs = {ensure_future(f, loop=loop) for f in set(fs)}
 
     return await _wait(fs, timeout, return_when, loop)
 
@@ -449,9 +447,11 @@ async def wait_for(fut, timeout, *, loop=None):
 
         await _cancel_and_wait(fut, loop=loop)
         try:
-            return fut.result()
+            fut.result()
         except exceptions.CancelledError as exc:
             raise exceptions.TimeoutError() from exc
+        else:
+            raise exceptions.TimeoutError()
 
     waiter = loop.create_future()
     timeout_handle = loop.call_later(timeout, _release_waiter, waiter)
@@ -469,10 +469,7 @@ async def wait_for(fut, timeout, *, loop=None):
                 return fut.result()
             else:
                 fut.remove_done_callback(cb)
-                # We must ensure that the task is not running
-                # after wait_for() returns.
-                # See https://bugs.python.org/issue32751
-                await _cancel_and_wait(fut, loop=loop)
+                fut.cancel()
                 raise
 
         if fut.done():
@@ -487,9 +484,11 @@ async def wait_for(fut, timeout, *, loop=None):
             # exception, we should re-raise it
             # See https://bugs.python.org/issue40607
             try:
-                return fut.result()
+                fut.result()
             except exceptions.CancelledError as exc:
                 raise exceptions.TimeoutError() from exc
+            else:
+                raise exceptions.TimeoutError()
     finally:
         timeout_handle.cancel()
 
@@ -574,18 +573,17 @@ def as_completed(fs, *, loop=None, timeout=None):
     Note: The futures 'f' are not necessarily members of fs.
     """
     if futures.isfuture(fs) or coroutines.iscoroutine(fs):
-        raise TypeError(f"expect an iterable of futures, not {type(fs).__name__}")
-
-    if loop is not None:
-        warnings.warn("The loop argument is deprecated since Python 3.8, "
-                      "and scheduled for removal in Python 3.10.",
-                      DeprecationWarning, stacklevel=2)
+        raise TypeError(f"expect a list of futures, not {type(fs).__name__}")
 
     from .queues import Queue  # Import here to avoid circular import problem.
     done = Queue(loop=loop)
 
     if loop is None:
         loop = events.get_event_loop()
+    else:
+        warnings.warn("The loop argument is deprecated since Python 3.8, "
+                      "and scheduled for removal in Python 3.10.",
+                      DeprecationWarning, stacklevel=2)
     todo = {ensure_future(f, loop=loop) for f in set(fs)}
     timeout_handle = None
 
@@ -632,17 +630,16 @@ def __sleep0():
 
 async def sleep(delay, result=None, *, loop=None):
     """Coroutine that completes after a given time (in seconds)."""
-    if loop is not None:
-        warnings.warn("The loop argument is deprecated since Python 3.8, "
-                      "and scheduled for removal in Python 3.10.",
-                      DeprecationWarning, stacklevel=2)
-
     if delay <= 0:
         await __sleep0()
         return result
 
     if loop is None:
         loop = events.get_running_loop()
+    else:
+        warnings.warn("The loop argument is deprecated since Python 3.8, "
+                      "and scheduled for removal in Python 3.10.",
+                      DeprecationWarning, stacklevel=2)
 
     future = loop.create_future()
     h = loop.call_later(delay,
@@ -748,18 +745,13 @@ def gather(*coros_or_futures, loop=None, return_exceptions=False):
     after catching an exception (raised by one of the awaitables) from
     gather won't cancel any other awaitables.
     """
-    if loop is not None:
-        warnings.warn("The loop argument is deprecated since Python 3.8, "
-                      "and scheduled for removal in Python 3.10.",
-                      DeprecationWarning, stacklevel=2)
-
-    return _gather(*coros_or_futures, loop=loop, return_exceptions=return_exceptions)
-
-
-def _gather(*coros_or_futures, loop=None, return_exceptions=False):
     if not coros_or_futures:
         if loop is None:
             loop = events.get_event_loop()
+        else:
+            warnings.warn("The loop argument is deprecated since Python 3.8, "
+                          "and scheduled for removal in Python 3.10.",
+                          DeprecationWarning, stacklevel=2)
         outer = loop.create_future()
         outer.set_result([])
         return outer
@@ -768,7 +760,7 @@ def _gather(*coros_or_futures, loop=None, return_exceptions=False):
         nonlocal nfinished
         nfinished += 1
 
-        if outer is None or outer.done():
+        if outer.done():
             if not fut.cancelled():
                 # Mark exception retrieved.
                 fut.exception()
@@ -823,7 +815,6 @@ def _gather(*coros_or_futures, loop=None, return_exceptions=False):
     children = []
     nfuts = 0
     nfinished = 0
-    outer = None  # bpo-46672
     for arg in coros_or_futures:
         if arg not in arg_to_fut:
             fut = ensure_future(arg, loop=loop)

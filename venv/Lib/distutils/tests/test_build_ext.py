@@ -497,11 +497,7 @@ class BuildExtTestCase(TempdirManager,
             target = '%02d%01d0' % target
         else:
             # for 10.10 and beyond -> "10nn00"
-            if len(target) >= 2:
-                target = '%02d%02d00' % target
-            else:
-                # 11 and later can have no minor version (11 instead of 11.0)
-                target = '%02d0000' % target
+            target = '%02d%02d00' % target
         deptarget_ext = Extension(
             'deptarget',
             [deptarget_c],

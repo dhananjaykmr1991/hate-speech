@@ -338,7 +338,6 @@ class ZipInfo (object):
         'compress_size',
         'file_size',
         '_raw_time',
-        '_end_offset',
     )
 
     def __init__(self, filename="NoName", date_time=(1980,1,1,0,0,0)):
@@ -380,7 +379,6 @@ class ZipInfo (object):
         self.external_attr = 0          # External file attributes
         self.compress_size = 0          # Size of the compressed file
         self.file_size = 0              # Size of the uncompressed file
-        self._end_offset = None         # Start of the next local header or central directory
         # Other attributes are set by class ZipFile:
         # header_offset         Byte offset to the file header
         # CRC                   CRC-32 of the uncompressed file
@@ -722,9 +720,7 @@ class _SharedFile:
         self._lock = lock
         self._writing = writing
         self.seekable = file.seekable
-
-    def tell(self):
-        return self._pos
+        self.tell = file.tell
 
     def seek(self, offset, whence=0):
         with self._lock:
@@ -1124,15 +1120,8 @@ class _ZipWriteFile(io.BufferedIOBase):
     def write(self, data):
         if self.closed:
             raise ValueError('I/O operation on closed file.')
-
-        # Accept any data that supports the buffer protocol
-        if isinstance(data, (bytes, bytearray)):
-            nbytes = len(data)
-        else:
-            data = memoryview(data)
-            nbytes = data.nbytes
+        nbytes = len(data)
         self._file_size += nbytes
-
         self._crc = crc32(data, self._crc)
         if self._compressor:
             data = self._compressor.compress(data)
@@ -1401,12 +1390,6 @@ class ZipFile:
             if self.debug > 2:
                 print("total", total)
 
-        end_offset = self.start_dir
-        for zinfo in sorted(self.filelist,
-                            key=lambda zinfo: zinfo.header_offset,
-                            reverse=True):
-            zinfo._end_offset = end_offset
-            end_offset = zinfo.header_offset
 
     def namelist(self):
         """Return a list of file names in the archive."""
@@ -1561,10 +1544,6 @@ class ZipFile:
                 raise BadZipFile(
                     'File name in directory %r and header %r differ.'
                     % (zinfo.orig_filename, fname))
-
-            if (zinfo._end_offset is not None and
-                zef_file.tell() + zinfo.compress_size > zinfo._end_offset):
-                raise BadZipFile(f"Overlapped entries: {zinfo.orig_filename!r} (possible zip bomb)")
 
             # check for encrypted flag & handle password
             is_encrypted = zinfo.flag_bits & 0x1
@@ -1939,8 +1918,6 @@ class ZipFile:
                              centDirSize, centDirOffset, len(self._comment))
         self.fp.write(endrec)
         self.fp.write(self._comment)
-        if self.mode == "a":
-            self.fp.truncate()
         self.fp.flush()
 
     def _fpclose(self, fp):

@@ -50,7 +50,8 @@ def ip_address(address):
     except (AddressValueError, NetmaskValueError):
         pass
 
-    raise ValueError(f'{address!r} does not appear to be an IPv4 or IPv6 address')
+    raise ValueError('%r does not appear to be an IPv4 or IPv6 address' %
+                     address)
 
 
 def ip_network(address, strict=True):
@@ -79,7 +80,8 @@ def ip_network(address, strict=True):
     except (AddressValueError, NetmaskValueError):
         pass
 
-    raise ValueError(f'{address!r} does not appear to be an IPv4 or IPv6 network')
+    raise ValueError('%r does not appear to be an IPv4 or IPv6 network' %
+                     address)
 
 
 def ip_interface(address):
@@ -113,7 +115,8 @@ def ip_interface(address):
     except (AddressValueError, NetmaskValueError):
         pass
 
-    raise ValueError(f'{address!r} does not appear to be an IPv4 or IPv6 interface')
+    raise ValueError('%r does not appear to be an IPv4 or IPv6 interface' %
+                     address)
 
 
 def v4_int_to_packed(address):
@@ -156,7 +159,7 @@ def _split_optional_netmask(address):
     """Helper to split the netmask and raise AddressValueError if needed"""
     addr = str(address).split('/')
     if len(addr) > 2:
-        raise AddressValueError(f"Only one '/' permitted in {address!r}")
+        raise AddressValueError("Only one '/' permitted in %r" % address)
     return addr
 
 
@@ -1220,11 +1223,6 @@ class _BaseV4:
         if len(octet_str) > 3:
             msg = "At most 3 characters permitted in %r"
             raise ValueError(msg % octet_str)
-        # Handle leading zeros as strict as glibc's inet_pton()
-        # See security bug bpo-36384
-        if octet_str != '0' and octet_str[0] == '0':
-            msg = "Leading zeros are not permitted in %r"
-            raise ValueError(msg % octet_str)
         # Convert to integer (we know digits are legal)
         octet_int = int(octet_str, 10)
         if octet_int > 255:
@@ -1300,7 +1298,7 @@ class IPv4Address(_BaseV4, _BaseAddress):
         # which converts into a formatted IP string.
         addr_str = str(address)
         if '/' in addr_str:
-            raise AddressValueError(f"Unexpected '/' in {address!r}")
+            raise AddressValueError("Unexpected '/' in %r" % address)
         self._ip = self._ip_int_from_string(addr_str)
 
     @property
@@ -1909,7 +1907,7 @@ class IPv6Address(_BaseV6, _BaseAddress):
         # which converts into a formatted IP string.
         addr_str = str(address)
         if '/' in addr_str:
-            raise AddressValueError(f"Unexpected '/' in {address!r}")
+            raise AddressValueError("Unexpected '/' in %r" % address)
         addr_str, self._scope_id = self._split_scope_id(addr_str)
 
         self._ip = self._ip_int_from_string(addr_str)

@@ -74,7 +74,6 @@ import os
 import builtins
 import _sitebuiltins
 import io
-import stat
 
 # Prefixes for site-packages; add additional prefixes like /usr/local here
 PREFIXES = [sys.prefix, sys.exec_prefix]
@@ -158,13 +157,6 @@ def addpackage(sitedir, name, known_paths):
         reset = False
     fullname = os.path.join(sitedir, name)
     try:
-        st = os.lstat(fullname)
-    except OSError:
-        return
-    if ((getattr(st, 'st_flags', 0) & stat.UF_HIDDEN) or
-        (getattr(st, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_HIDDEN)):
-        return
-    try:
         f = io.TextIOWrapper(io.open_code(fullname))
     except OSError:
         return
@@ -211,8 +203,7 @@ def addsitedir(sitedir, known_paths=None):
         names = os.listdir(sitedir)
     except OSError:
         return
-    names = [name for name in names
-             if name.endswith(".pth") and not name.startswith(".")]
+    names = [name for name in names if name.endswith(".pth")]
     for name in sorted(names):
         addpackage(sitedir, name, known_paths)
     if reset:

@@ -386,7 +386,7 @@ class StreamWriter(Codec):
 
     def reset(self):
 
-        """ Resets the codec buffers used for keeping internal state.
+        """ Flushes and resets the codec buffers used for keeping state.
 
             Calling this method should ensure that the data on the
             output is put into a clean state, that allows appending
@@ -620,7 +620,7 @@ class StreamReader(Codec):
 
     def reset(self):
 
-        """ Resets the codec buffers used for keeping internal state.
+        """ Resets the codec buffers used for keeping state.
 
             Note that no stream repositioning should take place.
             This method is primarily intended to be able to recover

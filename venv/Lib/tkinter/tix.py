@@ -387,7 +387,9 @@ class TixWidget(tkinter.Widget):
     # These are missing from Tkinter
     def image_create(self, imgtype, cnf={}, master=None, **kw):
         if not master:
-            master = self
+            master = tkinter._default_root
+            if not master:
+                raise RuntimeError('Too early to create image')
         if kw and cnf: cnf = _cnfmerge((cnf, kw))
         elif kw: cnf = kw
         options = ()
@@ -473,7 +475,10 @@ class DisplayStyle:
             elif 'refwindow' in cnf:
                 master = cnf['refwindow']
             else:
-                master = tkinter._get_default_root('create display style')
+                master = tkinter._default_root
+                if not master:
+                    raise RuntimeError("Too early to create display style: "
+                                       "no root window")
         self.tk = master.tk
         self.stylename = self.tk.call('tixDisplayStyle', itemtype,
                             *self._options(cnf,kw) )

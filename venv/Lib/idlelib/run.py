@@ -16,7 +16,6 @@ import _thread as thread
 import threading
 import warnings
 
-import idlelib  # testing
 from idlelib import autocomplete  # AutoComplete, fetch_encodings
 from idlelib import calltip  # Calltip
 from idlelib import debugger_r  # start_debugger
@@ -38,13 +37,6 @@ if not hasattr(sys.modules['idlelib.run'], 'firstrun'):
     sys.modules['idlelib.run'].firstrun = False
 
 LOCALHOST = '127.0.0.1'
-
-try:
-    eof = 'Ctrl-D (end-of-file)'
-    exit.eof = eof
-    quit.eof = eof
-except NameError: # In case subprocess started with -S (maybe in future).
-    pass
 
 
 def idle_formatwarning(message, category, filename, lineno, line=None):
@@ -468,7 +460,9 @@ class StdInputFile(StdioFile):
         result = self._line_buffer
         self._line_buffer = ''
         if size < 0:
-            while line := self.shell.readline():
+            while True:
+                line = self.shell.readline()
+                if not line: break
                 result += line
         else:
             while len(result) < size:
@@ -544,21 +538,18 @@ class MyHandler(rpc.RPCHandler):
         thread.interrupt_main()
 
 
-class Executive:
+class Executive(object):
 
     def __init__(self, rpchandler):
         self.rpchandler = rpchandler
-        if idlelib.testing is False:
-            self.locals = __main__.__dict__
-            self.calltip = calltip.Calltip()
-            self.autocomplete = autocomplete.AutoComplete()
-        else:
-            self.locals = {}
+        self.locals = __main__.__dict__
+        self.calltip = calltip.Calltip()
+        self.autocomplete = autocomplete.AutoComplete()
 
     def runcode(self, code):
         global interruptable
         try:
-            self.user_exc_info = None
+            self.usr_exc_info = None
             interruptable = True
             try:
                 exec(code, self.locals)
@@ -571,17 +562,10 @@ class Executive:
                     print('SystemExit: ' + str(ob), file=sys.stderr)
             # Return to the interactive prompt.
         except:
-            self.user_exc_info = sys.exc_info()  # For testing, hook, viewer.
+            self.usr_exc_info = sys.exc_info()
             if quitting:
                 exit()
-            if sys.excepthook is sys.__excepthook__:
-                print_exception()
-            else:
-                try:
-                    sys.excepthook(*self.user_exc_info)
-                except:
-                    self.user_exc_info = sys.exc_info()  # For testing.
-                    print_exception()
+            print_exception()
             jit = self.rpchandler.console.getvar("<<toggle-jit-stack-viewer>>")
             if jit:
                 self.rpchandler.interp.open_remote_stack_viewer()
@@ -606,8 +590,8 @@ class Executive:
         return self.autocomplete.fetch_completions(what, mode)
 
     def stackviewer(self, flist_oid=None):
-        if self.user_exc_info:
-            typ, val, tb = self.user_exc_info
+        if self.usr_exc_info:
+            typ, val, tb = self.usr_exc_info
         else:
             return None
         flist = None
