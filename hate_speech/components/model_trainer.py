@@ -2,15 +2,15 @@ import os
 import sys
 import pickle
 import pandas as pd
-from hate.logger import logging
-from hate.constants import *
-from hate.exception import CustomException
+from hate_speech.logger import logging
+from hate_speech.constants import *
+from hate_speech.exception import CustomException
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.text import Tokenizer
 from keras.utils import pad_sequences
-from hate.entity.config_entity import ModelTrainerConfig
-from hate.entity.artifact_entity import ModelTrainerArtifacts,DataTransformationArtifacts
-from hate.ml.model import ModelArchitecture
+from hate_speech.entity.config_entity import ModelTrainerConfig
+from hate_speech.entity.artifact_entity import ModelTrainerArtifacts,DataTransformationArtifacts
+from hate_speech.ml.model import ModelArchitecture
 
 
 

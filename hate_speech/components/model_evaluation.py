@@ -4,16 +4,16 @@ import keras
 import pickle
 import numpy as np
 import pandas as pd
-from hate.logger import logging
-from hate.exception import CustomException
+from hate_speech.logger import logging
+from hate_speech.exception import CustomException
 from keras.utils import pad_sequences
-from hate.constants import *
+from hate_speech.constants import *
 # from hate.ml.model import ModelArchitecture
-from hate.configuration.gcloud_syncer import GCloudSync
+from hate_speech.configuration.gcloud_syncer import GCloudSync
 # from keras.preprocessing.text import Tokenizer
 from sklearn.metrics import confusion_matrix
-from hate.entity.config_entity import ModelEvaluationConfig
-from hate.entity.artifact_entity import ModelEvaluationArtifacts, ModelTrainerArtifacts, DataTransformationArtifacts
+from hate_speech.entity.config_entity import ModelEvaluationConfig
+from hate_speech.entity.artifact_entity import ModelEvaluationArtifacts, ModelTrainerArtifacts, DataTransformationArtifacts
 
 
 class ModelEvaluation:
